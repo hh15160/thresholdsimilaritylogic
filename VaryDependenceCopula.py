@@ -11,7 +11,7 @@ import seaborn as sns
 
 
 
-def copula_truth_table(variables, formula, s):
+def copula_truth_table(variables, formula, s, beta):
     
     #   Only considers similarity expressions that are invloved in sentence theta
     variables2=[]
@@ -117,7 +117,7 @@ def copula_truth_table(variables, formula, s):
            if df[variables2[jj]][ii]==1:
                P.append(df.columns[jj])
            
-        x_sum = copula_atoms(P,variables2,s)
+        x_sum = copula_atoms(P,variables2,s, beta)
         s_vals.append(x_sum)
         
     df.insert(loc=0, column='S_val', value = s_vals)
@@ -210,28 +210,34 @@ def create_variables(n):
     return variables, s
 
 # Function for calculating Franks Copula
-def franks_copula(values):
-    alpha = 0.5
+def franks_copula(values, beta):
     # Do sum first...
     sum_values = []
     for i in range(0, len(values)):
-        p=alpha**(values[i])-1
+        p=beta**(values[i])-1
         sum_values.append(p)
     
     prod_sum_values = np.prod(sum_values)
-    cop = math.log(1+(prod_sum_values/(alpha-1)**(len(values)-1)))/math.log(alpha)
+    cop = math.log(1+(prod_sum_values/(beta-1)**(len(values)-1)))/math.log(beta)
 
     return cop
 
 # Funciton for calculating the copula atoms    
 # Will do one atom at a time
-def copula_atoms(P,variables,s):
+def copula_atoms(P,variables,s, beta):
     #Generate F
     F = create_superset(P,variables)
     x_vec = []
+    
+    # Round values if dependence variable =0 or 1
+    if beta==1:
+        beta = 0.9999999999999
+    if beta==0:
+        beta = 0.0000000000001
+        
     for i in range(0,len(F)):
         values = f(variables,s,F)
-        x = (-1)**(len(F[i])-len(P)) * franks_copula(values[i])
+        x = (-1)**(len(F[i])-len(P)) * franks_copula(values[i], beta)
         x_vec.append(x)
         
     x_sum = np.sum(x_vec)
@@ -277,13 +283,13 @@ def f(variables,s,F):
     return values    
     
 
-def analysis(n,k):
-    # Average time over 10 attempts of n
+def analysis(n,k, beta):
+    # Average time over 100 attempts of n or k
     time2=[]
-    for p in range(0,50):
+    for p in range(0,100):
         start_time = time.time()
         formula, variables, s= new_formula_generator(n,k)
-        df, sval_sum = copula_truth_table(variables, formula, s)
+        df, sval_sum = copula_truth_table(variables, formula, s, beta)
         end_time = time.time()
         time2.append(end_time-start_time)
         
@@ -291,17 +297,17 @@ def analysis(n,k):
     return df, formula, sval_sum, time_taken
   
 
-def run_once(n,k):
+def run_once(n,k, beta):
         formula, variables, s= new_formula_generator(n,k)
-        df, sval_sum = copula_truth_table(variables, formula, s)
+        df, sval_sum = copula_truth_table(variables, formula, s, beta)
         return formula, variables, df, sval_sum
     
 
-def test():
+def test(beta):
         formula = [['not', 's1', 'and', 's3'],['or'], ['s2']]
         variables = ['s1','s2','s3','s4']
         s = [0.75,0.3,0.12, 0.15]
-        df, sval_sum = copula_truth_table(variables, formula, s)
+        df, sval_sum = copula_truth_table(variables, formula, s, beta)
         return formula, variables, df, sval_sum, s
   
   
@@ -315,8 +321,9 @@ if __name__ == "__main__":
     total_time=[]
     k=20
     n_vec=[]
-    for n in range(1,10):
-        df, formula, sval_sum, time_taken = analysis(n,k)
+    beta=0.5
+    for n in range(1,1000):
+        df, formula, sval_sum, time_taken = analysis(n,k, beta)
         n_vec.append(n)
         total_time.append(time_taken)
         print(n)
@@ -334,8 +341,9 @@ if __name__ == "__main__":
     total_time=[]
     n=10
     k_vec=[]
-    for k in range(1,1000):
-        df, formula, sval_sum, time_taken = analysis(n,k)
+    beta = 0.5
+    for k in range(1,10):
+        df, formula, sval_sum, time_taken = analysis(n,k, beta)
         k_vec.append(k)
         total_time.append(time_taken)
         print(k)
@@ -350,5 +358,49 @@ if __name__ == "__main__":
         
     
     # Test a specific formula  
-    formula, variables, df, sval_sum, s = test()
+    formula, variables, df, sval_sum, s = test(beta)
     
+    
+    ####### VARYING DEPENDENCE PLOTS #############
+    
+    b_vec=[]
+    s_vec=[]
+    n=3
+    k=3
+    
+    formula, variables, s= new_formula_generator(n,k)
+    for beta in range(0,100): 
+        beta = beta*0.01
+        b_vec.append(beta)
+        formula, variables, df, sval_sum, s = test(beta)
+        s_vec.append(sval_sum)
+        
+    plt.figure()
+    plt.gcf().subplots_adjust(bottom=0.15)
+    plt.gcf().subplots_adjust(left=0.15)
+    plt.tight_layout()
+    plt.tick_params(labelsize=15)
+    plt.title('')
+    plt.xlabel(r'$\beta$', fontsize = 'large')
+    plt.ylabel(r'$\mu(\theta)$', fontsize = 'large')
+    plt.scatter(b_vec, s_vec, marker='+') 
+
+    dependent = s_vec[0]
+    independent = s_vec[-1]
+    
+        
+    # Lines for dependence and independence
+    plt.plot(np.linspace(-0.5,1.5,200), [dependent]*200, linestyle='--', color = 'C0')
+    plt.plot(np.linspace(-0.5,1.5,200), [independent]*200, linestyle='--',color= 'C1')
+    
+    plt.plot(b_vec, s_vec,'r')
+    
+    plt.xlim([-0.1,1])
+    
+    if independent>dependent:
+        plt.ylim([dependent-0.01, independent+0.01])
+    else:
+        plt.ylim([independent-0.01, dependent+0.01])
+    
+    plt.show()   
+
