@@ -5,52 +5,44 @@ import random
 from random import randint
 import time
 import matplotlib.pyplot as plt
+from itertools import product
 import seaborn as sns
 
 
-# Orders the similarty expressions from smallest to largest
-def sort_expressions(s):
-    s = np.array(s)
-    order = np.argsort(s)
-    #Sorts s into order smallest to largest
-    s.sort(axis=0)
-    n=np.size(s)
-    mu=np.array(np.zeros(n+1))
-    mu[0]=s[0]
-    for i in range(1, n):
-        mu[i]=s[i]-s[i-1]
-        #print(mu[i])
-    mu[n]=1-s[-1]  
-    return [s, mu, order]
 
-# Creates the truth table
-def create_truth_table(variables, formula, s):
-    variables3=[]
-    s_new = []
+def vary_epsilon_truth_table(variables, formula, s):
     
-#   Only considers similarity expressions that are invloved in sentence theta
+    # Change generator such that only necessary variables are used in formula generation
+    variables2=[]
     for i in range(0,len(variables)):
         if any(variables[i] in s for s in formula):
-            variables3.append(variables[i])
-            s_new.append(s[i])
-    [s, mu, order] = sort_expressions(s_new)
-    n=len(variables3)
-    variables2=[]
-    order = order[::-1]
-    
-    
-    for i in range(0,n):
-        variables2.append(variables3[order[i]])
-    m = np.ones((n+1,n))
-    m=np.tril(m, -1)
-    rev_mu = mu[::-1]
-    m=np.asarray(m)
-    df = pd.DataFrame(m,columns= variables2)
-    df.insert(loc=0, column='S_val', value = rev_mu)
+            variables2.append(variables[i])
+            
+    # Now, varaibles2 contains only relevant s valuess               
+    # Generates initial 1 and 0s for truth table
+    n=len(variables2)
+    m = [i for i in product(range(2), repeat=n)] 
+    df = pd.DataFrame(m ,columns = variables2)
+
+    # Need to add in the s values now
+    # Finds the product of the s values
+    s_vals = []
+    for i in range(0, len(df)):
+        s_sum = []
+        for j in range(0, n):
+            # If equal to 1, append value
+           if df[variables2[j]][i]==1:
+               s_sum.append(s[j])
+            # If equal to zero, append (1-value)
+           else:
+               s_sum.append(1-s[j])
+        s_vals.append(np.product(s_sum))
+    df.insert(loc=0, column='S_val', value = s_vals)
     
     column_names=[]
     c=0
     
+#   This point onwards is farily similar to total dependence model
 #   Loops through the entire formula
     for i in range(0,len(formula)):
         # Checks in a sub bracket
@@ -120,8 +112,8 @@ def create_truth_table(variables, formula, s):
     df[column_name_joint]=truth
     sval_sum = evaluation(df,column_name_joint)
     return df, sval_sum
-    
 
+    
 #Evaluation function   
 def evaluation(df,column_name_joint):
     #Need to find the sum of svals
@@ -141,8 +133,8 @@ def new_formula_generator(n,k):
     connective_list = ['and', 'or']
     variable_list = variables
     formula=[]
-    connective=[]
     
+    connective=[]
     # Number of connectives is k-1
     for j in range(0,k-1):
         connective.append(random.choice(connective_list))
@@ -150,7 +142,7 @@ def new_formula_generator(n,k):
     #Create an empty sub brakcket
     sub_bracket=[]
     
-    for i in range(0,k):   
+    for i in range(0,k):
         # Decide on whether a 'not' is present or not
         if randint(0,1)==1:
             not_present=True
@@ -161,12 +153,13 @@ def new_formula_generator(n,k):
         # Keep iterating through s_value if in formula subbracket already
         while (s_value in sub_bracket)==True:
             # Stops loop from getting stuck if k>n
-            if all(x==connective[0] for x in connective)==False:
+            if all(x==connective[0] for x in connective)==False and set(variables).issubset(sub_bracket)==False:
                 s_value = random.choice(variable_list)
+
             else:
                 break
              
-#       Checks for 'not's
+        #       Checks for 'not's
         if not_present==True:
             #if first loop through j
             sub_bracket.append('not')
@@ -174,10 +167,8 @@ def new_formula_generator(n,k):
         sub_bracket.append(s_value)
         
         if i!=(k-1):
-            
             if connective[i]=='and':
                 sub_bracket.append(connective[i])
-                
             elif connective[i]=='or':
                 # Close bracket and add to formula
                 formula.append(sub_bracket)
@@ -187,13 +178,13 @@ def new_formula_generator(n,k):
                 
         else:
             formula.append(sub_bracket)
-             
+            
+            
     return [formula, variables, s]
             
-
+        
 
 def create_variables(n):
-#   Initialise variables and vectors
     num_variables=n
     s=[]
     variables=[]
@@ -205,58 +196,53 @@ def create_variables(n):
     return variables, s
 
 
-
 def analysis(n,k):
     # Average time over 100 attempts of n or k
     time2=[]
-    
     for p in range(0,100):
         start_time = time.time()
         formula, variables, s= new_formula_generator(n,k)
-        df, sval_sum = create_truth_table(variables, formula, s)
+        df, sval_sum = vary_epsilon_truth_table(variables, formula, s)
         end_time = time.time()
         time2.append(end_time-start_time)
         
     time_taken= np.mean(time2)
-    return df, formula, sval_sum, time_taken, s
+    return df, formula, sval_sum, time_taken
  
-    
 # Code to run analysis once
 def run_once(n,k):
         formula, variables, s= new_formula_generator(n,k)
-        df, sval_sum = create_truth_table(variables, formula, s)
+        df, sval_sum = vary_epsilon_truth_table(variables, formula, s)
         return formula, variables, df, sval_sum
-  
-    
+
 # Code for testing a specific formula
 def test():
         formula = [['not','s1','and','not','s2','and','not','s3']]
         variables = ['s1','s2','s3','s4','s5']
         s = [0.75,0.3,0.12, 0.33, 0.98]
-        df, sval_sum = create_truth_table(variables, formula, s)
+        df, sval_sum = vary_epsilon_truth_table(variables, formula, s)
         return formula, variables, df, sval_sum, s    
-
 
 
 if __name__ == "__main__":    
     #Seaborn for graphs
     sns.set()
-    
-    
-    ###### k=15, n varied ######
+
+
+    ###### k=5, n varied ######
     total_time=[]
-    k=15
+    k=5
     n_vec=[]
     for n in range(1,100):
-        df, formula, sval_sum, time_taken, s = analysis((n*10)+5,k)
+        df, formula, sval_sum, time_taken = analysis((n*10)+5,k)
         n_vec.append((n*10)+5)
         total_time.append(time_taken)
         print(n)
         
     plt.xlabel('Number of similarity values (n)')
     plt.ylabel('Computational Time (s)')
-    plt.scatter(n_vec, total_time,marker="+") 
-    plt.plot(np.unique(n_vec), np.poly1d(np.polyfit(n_vec, total_time, 2))(np.unique(n_vec)), 'r', linewidth=3.0)
+    plt.scatter(n_vec, total_time, marker="+") 
+    plt.plot(np.unique(n_vec), np.poly1d(np.polyfit(n_vec, total_time, 1))(np.unique(n_vec)), 'r', linewidth=3)
     plt.show()   
     
     ######               ######
@@ -264,28 +250,28 @@ if __name__ == "__main__":
     # Fixed number of similarity expressions
     ###### n=1000, k varied ######
     total_time=[]
-    n=1000
+    n=15
     k_vec=[]
-    for k in range(1,100):
-        df, formula, sval_sum, time_taken, s = analysis(n,k*10)
-        k_vec.append(k*10)
+    for k in range(1,30):
+        df, formula, sval_sum, time_taken = analysis(n,k)
+        k_vec.append(k)
         total_time.append(time_taken)
         print(k)
+        
     plt.figure()
     plt.xlabel('Length of Formula (k)')
     plt.ylabel('Computational Time (s)')
-    plt.scatter(k_vec, total_time,marker="+") 
-    plt.plot(np.unique(k_vec), np.poly1d(np.polyfit(k_vec, total_time, 2))(np.unique(k_vec)), 'r',linewidth=3.0)
+    plt.scatter(k_vec, total_time, marker="+", s=100) 
+    plt.plot(k_vec, total_time, 'r', linewidth=3)
+    #plt.plot(np.unique(k_vec), np.poly1d(np.polyfit(k_vec, total_time, 2))(np.unique(k_vec)), 'r', linewidth=3)
     plt.show()
-    
+        
     ######              ######
     
     # Test a specific formula  
     formula, variables, df, sval_sum, s = test()
-    
-    
-        
-        
+
+
     
     
     
