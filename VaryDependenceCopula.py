@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 from itertools import product, chain, combinations
 import math as math
 import seaborn as sns
+import scipy as sp
 
 
 
@@ -294,7 +295,8 @@ def analysis(n,k, beta):
         time2.append(end_time-start_time)
         
     time_taken= np.mean(time2)
-    return df, formula, sval_sum, time_taken
+    std_dev = np.std(time2)
+    return df, formula, sval_sum, time_taken, std_dev
   
 
 def run_once(n,k, beta):
@@ -319,17 +321,20 @@ if __name__ == "__main__":
     
     ###### k=20, n varied ######   
     total_time=[]
-    k=20
+    k=5
     n_vec=[]
+    err=[]
     beta=0.5
-    for n in range(1,1000):
-        df, formula, sval_sum, time_taken = analysis(n,k, beta)
+    for n in range(5,1000):
+        df, formula, sval_sum, time_taken, std_err = analysis(n,k, beta)
         n_vec.append(n)
         total_time.append(time_taken)
+        err.append(std_err)
         print(n)
     plt.xlabel('Number of Similarity Values (n)')
     plt.ylabel('Computational Time (s)')
     plt.scatter(n_vec, total_time, marker = '+') 
+    plt.errorbar(n_vec, total_time, err,fmt='none',capsize=5)
     plt.plot(np.unique(n_vec), np.poly1d(np.polyfit(n_vec, total_time, 1))(np.unique(n_vec)), 'r', linewidth=3.0)
     plt.show()   
     
@@ -341,17 +346,20 @@ if __name__ == "__main__":
     total_time=[]
     n=10
     k_vec=[]
+    err=[]
     beta = 0.5
-    for k in range(1,10):
-        df, formula, sval_sum, time_taken = analysis(n,k, beta)
-        k_vec.append(k)
+    for k in range(1,20):
+        df, formula, sval_sum, time_taken, std_err = analysis(n,k*50, beta)
+        k_vec.append(k*50)
         total_time.append(time_taken)
+        err.append(std_err)
         print(k)
         
     plt.figure()
     plt.xlabel('Length of Formula (k)')
     plt.ylabel('Computational Time (s)')
     plt.scatter(k_vec, total_time, marker="+", s=100) 
+    plt.errorbar(k_vec, total_time, err,fmt='none',capsize=5)
     plt.plot(k_vec, total_time, 'r', linewidth=3)
     #plt.plot(np.unique(k_vec), np.poly1d(np.polyfit(k_vec, total_time, 1))(np.unique(k_vec)), 'r',linewidth=3.0)
     plt.show()

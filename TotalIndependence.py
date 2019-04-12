@@ -234,8 +234,8 @@ if __name__ == "__main__":
     k=5
     n_vec=[]
     for n in range(1,100):
-        df, formula, sval_sum, time_taken = analysis((n*10)+5,k)
-        n_vec.append((n*10)+5)
+        df, formula, sval_sum, time_taken = analysis((n*10)-5,k)
+        n_vec.append((n*10)-5)
         total_time.append(time_taken)
         print(n)
         
@@ -250,11 +250,11 @@ if __name__ == "__main__":
     # Fixed number of similarity expressions
     ###### n=1000, k varied ######
     total_time=[]
-    n=15
+    n=10
     k_vec=[]
-    for k in range(1,30):
-        df, formula, sval_sum, time_taken = analysis(n,k)
-        k_vec.append(k)
+    for k in range(1,100):
+        df, formula, sval_sum, time_taken = analysis(n,k*10)
+        k_vec.append(k*10)
         total_time.append(time_taken)
         print(k)
         
