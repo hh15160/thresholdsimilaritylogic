@@ -16,5 +16,5 @@ There are three different files containing Python Simulations for different depe
 
 ## Acknowledgments
 
- **Jonathan lawry** - University of Bristol.
+ **Jonathan Lawry** - University of Bristol.
 
